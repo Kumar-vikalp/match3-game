@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loadProgress, type PlayerProgress, DEFAULT_PROGRESS } from "../src/lib/progress";
+import SyncIndicator from "../src/components/SyncIndicator";
 
 export default function Home() {
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
@@ -15,6 +16,9 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.topBar}>
+        <SyncIndicator />
+      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.heroSection}>
           <Text style={styles.title}>GEM</Text>
@@ -56,6 +60,12 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0118" },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,

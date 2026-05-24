@@ -7,7 +7,7 @@ import { useGameEngine } from "../../src/game/useGameEngine";
 import GameBoard from "../../src/components/GameBoard";
 import HUD from "../../src/components/HUD";
 import GameOverModal from "../../src/components/GameOverModal";
-import { loadProgress, saveProgress, calculateStars } from "../../src/lib/progress";
+import { calculateStars, recordLevelComplete } from "../../src/lib/progress";
 
 export default function LevelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,15 +27,8 @@ export default function LevelScreen() {
       setShowResult(true);
 
       if (won) {
-        const progress = await loadProgress();
-        if (!progress.levelsCompleted.includes(level.id)) {
-          progress.levelsCompleted = [...progress.levelsCompleted, level.id];
-        }
-        const key = `level_${level.id}`;
         const stars = calculateStars(score, level.targetScore);
-        if ((progress.highScores[key] ?? 0) < score) progress.highScores[key] = score;
-        if ((progress.stars[key] ?? 0) < stars) progress.stars[key] = stars;
-        await saveProgress(progress);
+        await recordLevelComplete(level.id, score, stars);
       }
     },
     [level]

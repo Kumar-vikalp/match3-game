@@ -6,7 +6,7 @@ import { useGameEngine } from "../src/game/useGameEngine";
 import GameBoard from "../src/components/GameBoard";
 import HUD from "../src/components/HUD";
 import GameOverModal from "../src/components/GameOverModal";
-import { loadProgress, saveProgress } from "../src/lib/progress";
+import { recordEndlessScore } from "../src/lib/progress";
 
 export default function EndlessScreen() {
   const router = useRouter();
@@ -17,11 +17,7 @@ export default function EndlessScreen() {
   const handleEnd = useCallback(async (_won: boolean, finalScore: number) => {
     setScore(finalScore);
     setShowResult(true);
-    const progress = await loadProgress();
-    if (finalScore > progress.endlessHighScore) {
-      progress.endlessHighScore = finalScore;
-      await saveProgress(progress);
-    }
+    await recordEndlessScore(finalScore);
   }, []);
 
   return (
