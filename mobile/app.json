@@ -27,11 +27,17 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar",
-      "expo-haptics"
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "220a9d17-03c2-4ead-8a57-12ac8b4ee856"
+      }
+    },
+    "owner": "killm0nger"
   }
 }
