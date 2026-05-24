@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { GameConfig } from "@/engine/types";
 import { PowerUpType, createPowerUp } from "@/engine/powerups";
-import { CanvasRenderer } from "@/renderer/renderer";
+import { CanvasRenderer, preloadGemImages } from "@/renderer/renderer";
 import { GameController, GameState } from "@/game/controller";
 import { CELL_SIZE, BOARD_PADDING } from "@/renderer/constants";
 import HUD from "./HUD";
@@ -23,11 +23,16 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const [gameState, setGameState] = useState<ReturnType<GameController["getState"]> | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [imagesReady, setImagesReady] = useState(false);
   const gameEndedRef = useRef(false);
 
   useEffect(() => {
+    preloadGemImages().then(() => setImagesReady(true));
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !imagesReady) return;
 
     gameEndedRef.current = false;
     setShowModal(false);
@@ -57,7 +62,7 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
 
     return () => { controllerRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.rows, config.cols, config.numColors, maxMoves, targetScore, mode]);
+  }, [config.rows, config.cols, config.numColors, maxMoves, targetScore, mode, imagesReady]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const controller = controllerRef.current;
@@ -116,6 +121,9 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
         className="cursor-pointer max-w-full"
         style={{ aspectRatio: `${canvasWidth}/${canvasHeight}` }}
       />
+      {!imagesReady && (
+        <div className="text-slate-400 text-sm">Loading gems...</div>
+      )}
       {showModal && gameState && (
         <GameOverModal
           won={mode === "level" && gameState.score >= targetScore}

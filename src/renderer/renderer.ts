@@ -1,9 +1,51 @@
-import { BoardState, Cell, GemType, Position } from '@/engine/types';
+import { BoardState, Cell, GemColor, GemType, Position } from '@/engine/types';
 import { CELL_SIZE, PADDING, BOARD_PADDING, GEM_COLORS, ANIMATION_DURATION } from './constants';
 
 interface Particle { x: number; y: number; vx: number; vy: number; color: string; life: number }
 
 const posKey = (p: Position) => `${p.row},${p.col}`;
+
+const COLOR_IMAGE: Record<GemColor, string> = {
+  [GemColor.Red]: 'red',
+  [GemColor.Blue]: 'blue',
+  [GemColor.Green]: 'green',
+  [GemColor.Yellow]: 'yellow',
+  [GemColor.Purple]: 'purple',
+  [GemColor.Orange]: 'orange',
+};
+
+const IMAGE_SOURCES: Record<string, string> = {
+  red: '/gems/red.png',
+  blue: '/gems/blue.png',
+  green: '/gems/green.png',
+  yellow: '/gems/yellow.png',
+  purple: '/gems/purple.png',
+  orange: '/gems/orange.png',
+  thunder: '/gems/thunder.png',
+  bomb: '/gems/bomb.png',
+};
+
+const imageCache: Record<string, HTMLImageElement> = {};
+let preloadPromise: Promise<void> | null = null;
+
+export function preloadGemImages(): Promise<void> {
+  if (preloadPromise) return preloadPromise;
+  preloadPromise = Promise.all(
+    Object.entries(IMAGE_SOURCES).map(
+      ([key, src]) =>
+        new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            imageCache[key] = img;
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = src;
+        })
+    )
+  ).then(() => undefined);
+  return preloadPromise;
+}
 
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -73,50 +115,67 @@ export class CanvasRenderer {
 
   private drawGem(cell: Cell, pos: { x: number; y: number }, scale = 1, alpha = 1): void {
     const { ctx } = this;
-    const radius = (CELL_SIZE / 2 - PADDING) * scale;
-    if (radius <= 0) return;
-    const color = GEM_COLORS[cell.color];
+    const size = (CELL_SIZE - PADDING * 2) * scale;
+    if (size <= 0) return;
 
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = color;
+
+    // Bomb special: render bomb image only
+    if (cell.type === GemType.Bomb) {
+      const img = imageCache.bomb;
+      if (img) {
+        ctx.drawImage(img, pos.x - size / 2, pos.y - size / 2, size, size);
+      } else {
+        this.drawFallbackGem(cell, pos, scale);
+      }
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    // Color gem
+    const colorKey = COLOR_IMAGE[cell.color];
+    const img = imageCache[colorKey];
+    if (img) {
+      ctx.drawImage(img, pos.x - size / 2, pos.y - size / 2, size, size);
+    } else {
+      this.drawFallbackGem(cell, pos, scale);
+    }
+
+    // Thunder overlay for line clears
+    if (cell.type === GemType.LineClearH || cell.type === GemType.LineClearV) {
+      const thunder = imageCache.thunder;
+      if (thunder) {
+        const tSize = size * 0.6;
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        if (cell.type === GemType.LineClearV) ctx.rotate(Math.PI / 2);
+        ctx.drawImage(thunder, -tSize / 2, -tSize / 2, tSize, tSize);
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        if (cell.type === GemType.LineClearH) {
+          ctx.moveTo(pos.x - size * 0.35, pos.y);
+          ctx.lineTo(pos.x + size * 0.35, pos.y);
+        } else {
+          ctx.moveTo(pos.x, pos.y - size * 0.35);
+          ctx.lineTo(pos.x, pos.y + size * 0.35);
+        }
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  private drawFallbackGem(cell: Cell, pos: { x: number; y: number }, scale: number): void {
+    const { ctx } = this;
+    const radius = (CELL_SIZE / 2 - PADDING) * scale;
+    ctx.fillStyle = GEM_COLORS[cell.color];
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
     ctx.fill();
-
-    // Inner highlight for depth
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.beginPath();
-    ctx.arc(pos.x - radius * 0.3, pos.y - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Special indicators
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    if (cell.type === GemType.LineClearH) {
-      ctx.beginPath();
-      ctx.moveTo(pos.x - radius * 0.7, pos.y);
-      ctx.lineTo(pos.x + radius * 0.7, pos.y);
-      ctx.stroke();
-    } else if (cell.type === GemType.LineClearV) {
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y - radius * 0.7);
-      ctx.lineTo(pos.x, pos.y + radius * 0.7);
-      ctx.stroke();
-    } else if (cell.type === GemType.Bomb) {
-      const s = radius * 0.55;
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y - s);
-      ctx.lineTo(pos.x + s * 0.4, pos.y - s * 0.4);
-      ctx.lineTo(pos.x + s, pos.y);
-      ctx.lineTo(pos.x + s * 0.4, pos.y + s * 0.4);
-      ctx.lineTo(pos.x, pos.y + s);
-      ctx.lineTo(pos.x - s * 0.4, pos.y + s * 0.4);
-      ctx.lineTo(pos.x - s, pos.y);
-      ctx.lineTo(pos.x - s * 0.4, pos.y - s * 0.4);
-      ctx.closePath();
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
   }
 
   private drawParticles(): void {
@@ -146,7 +205,7 @@ export class CanvasRenderer {
     for (const p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.1; // gravity on particles
+      p.vy += 0.1;
       p.life -= 0.04;
     }
     this.particles = this.particles.filter(p => p.life > 0);
@@ -169,7 +228,6 @@ export class CanvasRenderer {
     });
   }
 
-  // board: state BEFORE gravity is applied (cells still at their `from` positions)
   animateFall(board: BoardState, movements: { from: Position; to: Position }[]): Promise<void> {
     const skip = new Set(movements.map(m => posKey(m.from)));
     return this.animate(ANIMATION_DURATION.fall, (t) => {
@@ -214,14 +272,6 @@ export class CanvasRenderer {
         }
       }
     });
-  }
-
-  // Lets particles drain after the last cascade step
-  async drainParticles(): Promise<void> {
-    while (this.particles.length > 0) {
-      await new Promise<void>(r => requestAnimationFrame(() => r()));
-      this.updateParticles();
-    }
   }
 
   private animate(duration: number, draw: (t: number) => void): Promise<void> {
