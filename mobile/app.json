@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "gemcrush",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kumarvikalp.gemcrush"
