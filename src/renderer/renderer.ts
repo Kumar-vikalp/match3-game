@@ -219,12 +219,30 @@ export class CanvasRenderer {
   }
 
   private drawParticles(): void {
+    const ctx = this.ctx;
     for (const p of this.particles) {
-      this.ctx.globalAlpha = Math.max(0, p.life);
-      this.ctx.fillStyle = p.color;
-      this.ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      const alpha = Math.max(0, p.life);
+      const size = 1.5 + p.life * 2;
+      // Outer glow
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size * 2, 0, Math.PI * 2);
+      ctx.fill();
+      // Core
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fill();
+      // Bright center
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size * 0.4, 0, Math.PI * 2);
+      ctx.fill();
     }
-    this.ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   }
 
   private spawnParticles(positions: Position[], board: BoardState): void {
@@ -232,11 +250,18 @@ export class CanvasRenderer {
       const cell = board[pos.row]?.[pos.col];
       const color = cell ? GEM_COLORS[cell.color] : '#ffffff';
       const { x, y } = this.posToPixel(pos);
-      const count = 6 + Math.floor(Math.random() * 4);
+      const count = 8;
       for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-        const speed = 1.5 + Math.random() * 1.5;
-        this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, life: 1 });
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+        const speed = 1.8 + Math.random() * 1.5;
+        this.particles.push({
+          x: x + (Math.random() - 0.5) * 4,
+          y: y + (Math.random() - 0.5) * 4,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 0.5,
+          color,
+          life: 1,
+        });
       }
     }
   }
@@ -245,8 +270,10 @@ export class CanvasRenderer {
     for (const p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.1;
-      p.life -= 0.04;
+      p.vx *= 0.94;
+      p.vy *= 0.94;
+      p.vy += 0.15;
+      p.life -= 0.06;
     }
     this.particles = this.particles.filter(p => p.life > 0);
   }
