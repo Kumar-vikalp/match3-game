@@ -9,7 +9,7 @@ import {
 } from "@shopify/react-native-skia";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
-import { GemColor, GemType, Position } from "../../../src/engine";
+import { GemColor, GemType, Position } from "../engine";
 import type { GameSnapshot } from "../game/useGameEngine";
 
 interface Props {

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
-import { PowerUpType, PowerUp } from "../../../src/engine";
+import { PowerUpType, PowerUp } from "../engine";
 
 interface Props {
   score: number;

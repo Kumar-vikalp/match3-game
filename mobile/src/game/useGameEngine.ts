@@ -14,7 +14,7 @@ import {
   PowerUpType,
   PowerUp,
   applyShuffle,
-} from "../../../src/engine";
+} from "../engine";
 
 export type GameStateValue = "idle" | "selected" | "animating" | "gameover";
 
