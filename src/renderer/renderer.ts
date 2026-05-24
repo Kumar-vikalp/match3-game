@@ -81,13 +81,32 @@ export class CanvasRenderer {
     const h = this.rows * CELL_SIZE + BOARD_PADDING * 2;
     ctx.clearRect(0, 0, w, h);
 
-    // Grid background
+    // Outer board background with rounded corners and gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#1a0b2e');
+    bgGrad.addColorStop(1, '#0f0420');
+    ctx.fillStyle = bgGrad;
+    this.roundRect(0, 0, w, h, 16);
+    ctx.fill();
+
+    // Inner cells - subtle rounded squares with inset shadow feel
+    const cellPad = 3;
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        const x = BOARD_PADDING + c * CELL_SIZE;
-        const y = BOARD_PADDING + r * CELL_SIZE;
-        ctx.fillStyle = (r + c) % 2 === 0 ? '#1e293b' : '#334155';
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        const x = BOARD_PADDING + c * CELL_SIZE + cellPad;
+        const y = BOARD_PADDING + r * CELL_SIZE + cellPad;
+        const size = CELL_SIZE - cellPad * 2;
+
+        // Cell background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        this.roundRect(x, y, size, size, 8);
+        ctx.fill();
+
+        // Subtle inner highlight (top-left)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.lineWidth = 1;
+        this.roundRect(x + 0.5, y + 0.5, size - 1, size - 1, 8);
+        ctx.stroke();
       }
     }
 
@@ -102,15 +121,36 @@ export class CanvasRenderer {
 
     // Selection highlight
     if (selected) {
-      const { x, y } = this.posToPixel(selected);
-      ctx.strokeStyle = '#ffffff';
+      const x = BOARD_PADDING + selected.col * CELL_SIZE + cellPad;
+      const y = BOARD_PADDING + selected.row * CELL_SIZE + cellPad;
+      const size = CELL_SIZE - cellPad * 2;
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, CELL_SIZE / 2 - PADDING - 2, 0, Math.PI * 2);
+      this.roundRect(x, y, size, size, 8);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+      ctx.lineWidth = 6;
+      this.roundRect(x - 1, y - 1, size + 2, size + 2, 9);
       ctx.stroke();
     }
 
     this.drawParticles();
+  }
+
+  private roundRect(x: number, y: number, w: number, h: number, r: number): void {
+    const ctx = this.ctx;
+    const rad = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.lineTo(x + w - rad, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+    ctx.lineTo(x + w, y + h - rad);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    ctx.lineTo(x + rad, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+    ctx.lineTo(x, y + rad);
+    ctx.quadraticCurveTo(x, y, x + rad, y);
+    ctx.closePath();
   }
 
   private drawGem(cell: Cell, pos: { x: number; y: number }, scale = 1, alpha = 1): void {

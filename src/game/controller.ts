@@ -58,6 +58,14 @@ export class GameController {
     }
   }
 
+  // Used by drag-to-swap: directly attempt a swap between two adjacent cells
+  requestSwap(a: Position, b: Position): void {
+    if (this.state === GameState.Animating || this.state === GameState.GameOver) return;
+    if (this.destroyMode) return;
+    if (!isAdjacent(a, b)) return;
+    this.executeSwap(a, b);
+  }
+
   async executeSwap(a: Position, b: Position): Promise<void> {
     this.state = GameState.Animating;
     this.selected = null;
