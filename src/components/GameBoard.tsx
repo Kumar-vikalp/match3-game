@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { GameConfig } from "@/engine/types";
 import { PowerUpType, createPowerUp } from "@/engine/powerups";
 import { CanvasRenderer, preloadGemImages } from "@/renderer/renderer";
 import { GameController, GameState } from "@/game/controller";
 import { CELL_SIZE, BOARD_PADDING } from "@/renderer/constants";
 import HUD from "./HUD";
-import GameOverModal from "./GameOverModal";
 
 interface Props {
   config: GameConfig;
@@ -22,7 +23,6 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
   const controllerRef = useRef<GameController | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const [gameState, setGameState] = useState<ReturnType<GameController["getState"]> | null>(null);
-  const [showModal, setShowModal] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const gameEndedRef = useRef(false);
 
@@ -35,7 +35,6 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
     if (!canvas || !imagesReady) return;
 
     gameEndedRef.current = false;
-    setShowModal(false);
 
     const renderer = new CanvasRenderer(canvas, config.rows, config.cols);
     rendererRef.current = renderer;
@@ -45,7 +44,6 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
       setGameState({ ...s });
       if (s.state === GameState.GameOver && !gameEndedRef.current) {
         gameEndedRef.current = true;
-        setShowModal(true);
         const won = mode === "level" && s.score >= targetScore;
         onGameEnd?.(won, s.score);
       }
@@ -80,27 +78,11 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
     if (pos) controller.handleClick(pos);
   };
 
-  const handleRestart = () => {
-    setShowModal(false);
-    gameEndedRef.current = false;
-    const controller = controllerRef.current;
-    if (!controller) return;
-    controller.reset();
-    controller.movesLeft = maxMoves;
-    controller.targetScore = targetScore;
-    controller.powerUps = [
-      createPowerUp(PowerUpType.Shuffle),
-      createPowerUp(PowerUpType.DestroyGem),
-      ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
-    ];
-    setGameState(controller.getState());
-  };
-
   const canvasWidth = config.cols * CELL_SIZE + BOARD_PADDING * 2;
   const canvasHeight = config.rows * CELL_SIZE + BOARD_PADDING * 2;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 w-full">
       {gameState && (
         <HUD
           score={gameState.score}
@@ -113,25 +95,37 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
           onUsePowerUp={(type) => controllerRef.current?.usePowerUp(type)}
         />
       )}
-      <canvas
-        ref={canvasRef}
-        width={canvasWidth}
-        height={canvasHeight}
-        onClick={handleCanvasClick}
-        className="cursor-pointer max-w-full"
-        style={{ aspectRatio: `${canvasWidth}/${canvasHeight}` }}
-      />
-      {!imagesReady && (
-        <div className="text-slate-400 text-sm">Loading gems...</div>
-      )}
-      {showModal && gameState && (
-        <GameOverModal
-          won={mode === "level" && gameState.score >= targetScore}
-          score={gameState.score}
-          onRestart={handleRestart}
-          onBack={() => window.history.back()}
+
+      <div className="relative">
+        {!imagesReady && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10"
+            style={{ width: canvasWidth, height: canvasHeight }}
+          >
+            <Loader2 size={32} className="animate-spin text-violet-400" />
+            <span className="text-xs text-violet-400/70 uppercase tracking-widest font-semibold">
+              Loading gems
+            </span>
+          </div>
+        )}
+        <motion.canvas
+          ref={canvasRef}
+          width={canvasWidth}
+          height={canvasHeight}
+          onClick={handleCanvasClick}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{
+            opacity: imagesReady ? 1 : 0,
+            scale: imagesReady ? 1 : 0.95,
+            boxShadow: gameState?.destroyMode
+              ? "0 0 0 2px rgba(236, 72, 153, 0.6), 0 0 60px rgba(236, 72, 153, 0.4)"
+              : undefined,
+          }}
+          transition={{ duration: 0.4 }}
+          className="cursor-pointer max-w-full touch-none"
+          style={{ aspectRatio: `${canvasWidth}/${canvasHeight}` }}
         />
-      )}
+      </div>
     </div>
   );
 }
