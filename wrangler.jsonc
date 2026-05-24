@@ -1,0 +1,16 @@
+{
+	"name": "match3-game",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "GAME_KV",
+			"id": "6d2af51d062b48bdb174820921756964"
+		}
+	]
+}
