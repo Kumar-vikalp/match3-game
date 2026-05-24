@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { GameConfig } from "@/engine/types";
 import { PowerUpType, createPowerUp } from "@/engine/powerups";
 import { CanvasRenderer } from "@/renderer/renderer";
@@ -23,26 +23,28 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const [gameState, setGameState] = useState<ReturnType<GameController["getState"]> | null>(null);
   const [showModal, setShowModal] = useState(false);
-
-  const update = useCallback(() => {
-    if (controllerRef.current) {
-      const s = controllerRef.current.getState();
-      setGameState({ ...s });
-      if (s.state === GameState.GameOver && !showModal) {
-        setShowModal(true);
-        const won = mode === "level" && s.score >= targetScore;
-        onGameEnd?.(won, s.score);
-      }
-    }
-  }, [mode, targetScore, onGameEnd, showModal]);
+  const gameEndedRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    gameEndedRef.current = false;
+    setShowModal(false);
+
     const renderer = new CanvasRenderer(canvas, config.rows, config.cols);
     rendererRef.current = renderer;
-    const controller = new GameController(config, renderer, update);
+
+    const controller = new GameController(config, renderer, () => {
+      const s = controller.getState();
+      setGameState({ ...s });
+      if (s.state === GameState.GameOver && !gameEndedRef.current) {
+        gameEndedRef.current = true;
+        setShowModal(true);
+        const won = mode === "level" && s.score >= targetScore;
+        onGameEnd?.(won, s.score);
+      }
+    });
     controller.movesLeft = maxMoves;
     controller.targetScore = targetScore;
     controller.powerUps = [
@@ -51,17 +53,18 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
       ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
     ];
     controllerRef.current = controller;
-    update();
+    setGameState(controller.getState());
 
     return () => { controllerRef.current = null; };
-  }, [config, maxMoves, targetScore, mode, update]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.rows, config.cols, config.numColors, maxMoves, targetScore, mode]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
     const controller = controllerRef.current;
     const renderer = rendererRef.current;
-    if (!canvas || !controller || !renderer) return;
+    if (!controller || !renderer) return;
 
+    const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -74,17 +77,18 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
 
   const handleRestart = () => {
     setShowModal(false);
-    controllerRef.current?.reset();
-    if (controllerRef.current) {
-      controllerRef.current.movesLeft = maxMoves;
-      controllerRef.current.targetScore = targetScore;
-      controllerRef.current.powerUps = [
-        createPowerUp(PowerUpType.Shuffle),
-        createPowerUp(PowerUpType.DestroyGem),
-        ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
-      ];
-    }
-    update();
+    gameEndedRef.current = false;
+    const controller = controllerRef.current;
+    if (!controller) return;
+    controller.reset();
+    controller.movesLeft = maxMoves;
+    controller.targetScore = targetScore;
+    controller.powerUps = [
+      createPowerUp(PowerUpType.Shuffle),
+      createPowerUp(PowerUpType.DestroyGem),
+      ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
+    ];
+    setGameState(controller.getState());
   };
 
   const canvasWidth = config.cols * CELL_SIZE + BOARD_PADDING * 2;
@@ -100,6 +104,7 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
           combo={gameState.combo}
           mode={mode}
           powerUps={gameState.powerUps}
+          destroyMode={gameState.destroyMode}
           onUsePowerUp={(type) => controllerRef.current?.usePowerUp(type)}
         />
       )}

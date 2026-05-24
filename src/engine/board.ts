@@ -25,12 +25,33 @@ export function swap(board: BoardState, a: Position, b: Position): BoardState {
   return b2;
 }
 
+function hasAnyValidMove(board: BoardState): boolean {
+  const rows = board.length;
+  const cols = board[0].length;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (c + 1 < cols) {
+        const s = swap(board, { row: r, col: c }, { row: r, col: c + 1 });
+        if (findMatches(s).length > 0) return true;
+      }
+      if (r + 1 < rows) {
+        const s = swap(board, { row: r, col: c }, { row: r + 1, col: c });
+        if (findMatches(s).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function createBoard(config: GameConfig): BoardState {
   let board: BoardState;
+  let attempts = 0;
   do {
     board = Array.from({ length: config.rows }, () =>
       Array.from({ length: config.cols }, () => randomCell(config.numColors))
     );
-  } while (findMatches(board).length > 0);
+    attempts++;
+    if (attempts > 100) break;
+  } while (findMatches(board).length > 0 || !hasAnyValidMove(board));
   return board;
 }

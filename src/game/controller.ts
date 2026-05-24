@@ -1,7 +1,7 @@
 import {
   BoardState, CascadeStep, GameConfig, Position,
   createBoard, swap, isAdjacent, findMatches, resolveCascade, calculateScore,
-  hasValidMoves, PowerUpType, PowerUp, applyShuffle, applyDestroyGem,
+  hasValidMoves, PowerUpType, PowerUp, applyShuffle,
 } from '@/engine';
 import { CanvasRenderer } from '@/renderer/renderer';
 
@@ -16,6 +16,7 @@ export class GameController {
   movesLeft: number;
   targetScore: number;
   powerUps: PowerUp[];
+  destroyMode = false;
   private config: GameConfig;
   private renderer: CanvasRenderer;
   private onUpdate: () => void;
@@ -33,6 +34,11 @@ export class GameController {
 
   handleClick(pos: Position): void {
     if (this.state === GameState.Animating || this.state === GameState.GameOver) return;
+
+    if (this.destroyMode) {
+      this.executeDestroy(pos);
+      return;
+    }
 
     if (this.state === GameState.Idle) {
       this.selected = pos;
@@ -55,6 +61,7 @@ export class GameController {
   async executeSwap(a: Position, b: Position): Promise<void> {
     this.state = GameState.Animating;
     this.selected = null;
+    this.onUpdate();
 
     await this.renderer.animateSwap(this.board, a, b);
     const swapped = swap(this.board, a, b);
@@ -65,6 +72,7 @@ export class GameController {
       await this.renderer.animateSwap(swapped, b, a);
       this.state = GameState.Idle;
       this.render();
+      this.onUpdate();
       return;
     }
 
@@ -86,64 +94,118 @@ export class GameController {
     this.onUpdate();
   }
 
+  private async executeDestroy(pos: Position): Promise<void> {
+    const pu = this.powerUps.find(p => p.type === PowerUpType.DestroyGem && p.uses > 0);
+    if (!pu) {
+      this.destroyMode = false;
+      this.onUpdate();
+      return;
+    }
+    pu.uses--;
+    this.destroyMode = false;
+    this.state = GameState.Animating;
+    this.onUpdate();
+
+    // Animate the single removal
+    await this.renderer.animateRemove(this.board, [pos]);
+    this.board[pos.row][pos.col] = null;
+
+    // Resolve cascade from this state
+    const { board, steps } = resolveCascade(this.board, this.config);
+    this.combo = 0;
+    for (const step of steps) {
+      await this.animateCascadeStep(step);
+      this.combo++;
+      this.score += calculateScore(step, this.combo);
+      this.onUpdate();
+    }
+    this.board = board;
+    this.state = this.isGameOver() ? GameState.GameOver : GameState.Idle;
+    this.render();
+    this.onUpdate();
+  }
+
   private async animateCascadeStep(step: CascadeStep): Promise<void> {
+    // 1. Animate fade-out of removed cells
     await this.renderer.animateRemove(this.board, step.removed);
-    // Apply removals to board for fall animation
-    for (const pos of step.removed) this.board[pos.row][pos.col] = null;
-    // Apply specials created
+
+    // 2. Apply removals to board, but preserve cells where specials were just created
+    const createdSet = new Set(step.specialsCreated.map(s => `${s.pos.row},${s.pos.col}`));
+    for (const pos of step.removed) {
+      const key = `${pos.row},${pos.col}`;
+      if (!createdSet.has(key)) this.board[pos.row][pos.col] = null;
+    }
+
+    // 3. Apply specials (set the type on the existing cell)
     for (const s of step.specialsCreated) {
-      if (this.board[s.pos.row]?.[s.pos.col]) {
-        this.board[s.pos.row][s.pos.col]!.type = s.type;
-      }
+      const cell = this.board[s.pos.row]?.[s.pos.col];
+      if (cell) cell.type = s.type;
     }
     this.render();
 
+    // 4. Animate fall (board still has cells at their `from` positions)
     if (step.fell.length) {
       await this.renderer.animateFall(this.board, step.fell);
+
+      // Apply gravity to controller's board
+      // Iterate in correct order: from top of `from` to bottom (so we don't overwrite)
+      // Actually since each `from` and `to` is unique within a column and `to.row > from.row`,
+      // we should process from bottom up to avoid clobbering.
+      const sortedFell = [...step.fell].sort((a, b) => b.to.row - a.to.row);
+      for (const m of sortedFell) {
+        this.board[m.to.row][m.to.col] = this.board[m.from.row][m.from.col];
+        this.board[m.from.row][m.from.col] = null;
+      }
     }
 
-    // Apply gravity
-    for (const m of step.fell) {
-      this.board[m.to.row][m.to.col] = this.board[m.from.row][m.from.col];
-      this.board[m.from.row][m.from.col] = null;
-    }
-
-    // Apply spawns
-    const spawnPositions = step.spawned.map(s => s.pos);
-    for (const s of step.spawned) {
-      this.board[s.pos.row][s.pos.col] = s.cell;
-    }
-
-    if (spawnPositions.length) {
-      await this.renderer.animateSpawn(this.board, spawnPositions);
+    // 5. Apply spawns and animate
+    if (step.spawned.length) {
+      for (const s of step.spawned) {
+        this.board[s.pos.row][s.pos.col] = s.cell;
+      }
+      await this.renderer.animateSpawn(this.board, step.spawned.map(s => s.pos));
     }
     this.render();
   }
 
   isGameOver(): boolean {
-    if (this.movesLeft > 0 && this.score >= this.targetScore) return true;
+    if (this.targetScore > 0 && this.score >= this.targetScore) return true;
     if (this.movesLeft === 0) return true;
     if (this.movesLeft === -1 && !hasValidMoves(this.board)) return true;
     return false;
   }
 
-  usePowerUp(type: PowerUpType, pos?: Position): void {
+  usePowerUp(type: PowerUpType): void {
+    if (this.state === GameState.Animating || this.state === GameState.GameOver) return;
     const pu = this.powerUps.find(p => p.type === type && p.uses > 0);
     if (!pu) return;
+
+    if (type === PowerUpType.DestroyGem) {
+      // Enter destroy mode — wait for next click
+      this.destroyMode = true;
+      this.selected = null;
+      this.state = GameState.Idle;
+      this.onUpdate();
+      return;
+    }
+
     pu.uses--;
 
     if (type === PowerUpType.Shuffle) {
       this.board = applyShuffle(this.board);
-    } else if (type === PowerUpType.DestroyGem && pos) {
-      const { board, steps } = applyDestroyGem(this.board, pos, this.config);
+      // Re-resolve in case shuffle creates matches
+      const { board, steps } = resolveCascade(this.board, this.config);
       this.board = board;
+      this.combo = 0;
       for (const step of steps) {
-        this.score += calculateScore(step, 1);
+        this.combo++;
+        this.score += calculateScore(step, this.combo);
       }
     } else if (type === PowerUpType.ExtraMoves && this.movesLeft > 0) {
-      this.movesLeft += 3;
+      this.movesLeft += 5;
     }
 
+    this.state = this.isGameOver() ? GameState.GameOver : GameState.Idle;
     this.render();
     this.onUpdate();
   }
@@ -155,6 +217,7 @@ export class GameController {
     this.combo = 0;
     this.state = GameState.Idle;
     this.selected = null;
+    this.destroyMode = false;
     this.render();
     this.onUpdate();
   }
@@ -168,6 +231,7 @@ export class GameController {
       targetScore: this.targetScore,
       state: this.state,
       powerUps: this.powerUps,
+      destroyMode: this.destroyMode,
     };
   }
 

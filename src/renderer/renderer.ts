@@ -3,6 +3,8 @@ import { CELL_SIZE, PADDING, BOARD_PADDING, GEM_COLORS, ANIMATION_DURATION } fro
 
 interface Particle { x: number; y: number; vx: number; vy: number; color: string; life: number }
 
+const posKey = (p: Position) => `${p.row},${p.col}`;
+
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
   private rows: number;
@@ -31,7 +33,7 @@ export class CanvasRenderer {
     return { row, col };
   }
 
-  drawBoard(board: BoardState, selected: Position | null): void {
+  drawBoard(board: BoardState, selected: Position | null, skipCells?: Set<string>): void {
     const { ctx } = this;
     const w = this.cols * CELL_SIZE + BOARD_PADDING * 2;
     const h = this.rows * CELL_SIZE + BOARD_PADDING * 2;
@@ -47,9 +49,10 @@ export class CanvasRenderer {
       }
     }
 
-    // Gems
+    // Gems (skip those being animated)
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
+        if (skipCells?.has(`${r},${c}`)) continue;
         const cell = board[r]?.[c];
         if (cell) this.drawGem(cell, this.posToPixel({ row: r, col: c }));
       }
@@ -65,23 +68,30 @@ export class CanvasRenderer {
       ctx.stroke();
     }
 
-    // Particles
     this.drawParticles();
   }
 
-  private drawGem(cell: Cell, pos: { x: number; y: number }, scale = 1): void {
+  private drawGem(cell: Cell, pos: { x: number; y: number }, scale = 1, alpha = 1): void {
     const { ctx } = this;
     const radius = (CELL_SIZE / 2 - PADDING) * scale;
+    if (radius <= 0) return;
     const color = GEM_COLORS[cell.color];
 
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
     ctx.fill();
 
+    // Inner highlight for depth
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.arc(pos.x - radius * 0.3, pos.y - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
     // Special indicators
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     if (cell.type === GemType.LineClearH) {
       ctx.beginPath();
       ctx.moveTo(pos.x - radius * 0.7, pos.y);
@@ -93,7 +103,7 @@ export class CanvasRenderer {
       ctx.lineTo(pos.x, pos.y + radius * 0.7);
       ctx.stroke();
     } else if (cell.type === GemType.Bomb) {
-      const s = radius * 0.5;
+      const s = radius * 0.55;
       ctx.beginPath();
       ctx.moveTo(pos.x, pos.y - s);
       ctx.lineTo(pos.x + s * 0.4, pos.y - s * 0.4);
@@ -106,11 +116,12 @@ export class CanvasRenderer {
       ctx.closePath();
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
   }
 
   private drawParticles(): void {
     for (const p of this.particles) {
-      this.ctx.globalAlpha = p.life;
+      this.ctx.globalAlpha = Math.max(0, p.life);
       this.ctx.fillStyle = p.color;
       this.ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
     }
@@ -122,10 +133,11 @@ export class CanvasRenderer {
       const cell = board[pos.row]?.[pos.col];
       const color = cell ? GEM_COLORS[cell.color] : '#ffffff';
       const { x, y } = this.posToPixel(pos);
-      const count = 5 + Math.floor(Math.random() * 4);
+      const count = 6 + Math.floor(Math.random() * 4);
       for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i) / count;
-        this.particles.push({ x, y, vx: Math.cos(angle) * 2, vy: Math.sin(angle) * 2, color, life: 1 });
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        const speed = 1.5 + Math.random() * 1.5;
+        this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, life: 1 });
       }
     }
   }
@@ -134,46 +146,39 @@ export class CanvasRenderer {
     for (const p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.life -= 0.05;
+      p.vy += 0.1; // gravity on particles
+      p.life -= 0.04;
     }
     this.particles = this.particles.filter(p => p.life > 0);
   }
 
   animateSwap(board: BoardState, from: Position, to: Position): Promise<void> {
+    const skip = new Set([posKey(from), posKey(to)]);
+    const cellA = board[from.row][from.col];
+    const cellB = board[to.row][to.col];
     return this.animate(ANIMATION_DURATION.swap, (t) => {
-      this.drawBoard(board, null);
-      // Overdraw swapping gems at interpolated positions
+      this.drawBoard(board, null, skip);
       const fromPx = this.posToPixel(from);
       const toPx = this.posToPixel(to);
-      const cellA = board[from.row][from.col];
-      const cellB = board[to.row][to.col];
-
-      // Clear original positions
-      const clearGem = (pos: { x: number; y: number }) => {
-        this.ctx.fillStyle = '#1e293b';
-        this.ctx.fillRect(pos.x - CELL_SIZE / 2, pos.y - CELL_SIZE / 2, CELL_SIZE, CELL_SIZE);
-      };
-      clearGem(fromPx);
-      clearGem(toPx);
-
       const ax = fromPx.x + (toPx.x - fromPx.x) * t;
       const ay = fromPx.y + (toPx.y - fromPx.y) * t;
       const bx = toPx.x + (fromPx.x - toPx.x) * t;
       const by = toPx.y + (fromPx.y - toPx.y) * t;
-
       if (cellA) this.drawGem(cellA, { x: ax, y: ay });
       if (cellB) this.drawGem(cellB, { x: bx, y: by });
     });
   }
 
+  // board: state BEFORE gravity is applied (cells still at their `from` positions)
   animateFall(board: BoardState, movements: { from: Position; to: Position }[]): Promise<void> {
+    const skip = new Set(movements.map(m => posKey(m.from)));
     return this.animate(ANIMATION_DURATION.fall, (t) => {
-      this.drawBoard(board, null);
+      this.drawBoard(board, null, skip);
       for (const m of movements) {
+        const cell = board[m.from.row]?.[m.from.col];
+        if (!cell) continue;
         const fromPx = this.posToPixel(m.from);
         const toPx = this.posToPixel(m.to);
-        const cell = board[m.to.row]?.[m.to.col];
-        if (!cell) continue;
         const x = fromPx.x + (toPx.x - fromPx.x) * t;
         const y = fromPx.y + (toPx.y - fromPx.y) * t;
         this.drawGem(cell, { x, y });
@@ -183,30 +188,40 @@ export class CanvasRenderer {
 
   animateRemove(board: BoardState, positions: Position[]): Promise<void> {
     this.spawnParticles(positions, board);
+    const skip = new Set(positions.map(posKey));
     return this.animate(ANIMATION_DURATION.remove, (t) => {
       this.updateParticles();
-      this.drawBoard(board, null);
+      this.drawBoard(board, null, skip);
       for (const pos of positions) {
-        const { x, y } = this.posToPixel(pos);
         const cell = board[pos.row]?.[pos.col];
         if (cell) {
-          this.ctx.globalAlpha = 1 - t;
-          this.drawGem(cell, { x, y }, 1 - t);
-          this.ctx.globalAlpha = 1;
+          const { x, y } = this.posToPixel(pos);
+          this.drawGem(cell, { x, y }, 1 - t, 1 - t);
         }
       }
     });
   }
 
   animateSpawn(board: BoardState, positions: Position[]): Promise<void> {
+    const skip = new Set(positions.map(posKey));
     return this.animate(ANIMATION_DURATION.spawn, (t) => {
-      this.drawBoard(board, null);
+      this.drawBoard(board, null, skip);
       for (const pos of positions) {
-        const { x, y } = this.posToPixel(pos);
         const cell = board[pos.row]?.[pos.col];
-        if (cell) this.drawGem(cell, { x, y }, t);
+        if (cell) {
+          const { x, y } = this.posToPixel(pos);
+          this.drawGem(cell, { x, y }, t);
+        }
       }
     });
+  }
+
+  // Lets particles drain after the last cascade step
+  async drainParticles(): Promise<void> {
+    while (this.particles.length > 0) {
+      await new Promise<void>(r => requestAnimationFrame(() => r()));
+      this.updateParticles();
+    }
   }
 
   private animate(duration: number, draw: (t: number) => void): Promise<void> {

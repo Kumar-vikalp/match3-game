@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { LEVELS } from "@/game/levels";
 import GameBoard from "@/components/GameBoard";
-import { saveProgress, loadProgress, getUserId } from "@/lib/progress";
+import { saveProgress, loadProgress } from "@/lib/progress";
 
 export default function LevelPage() {
   const params = useParams();

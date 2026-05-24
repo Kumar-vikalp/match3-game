@@ -8,7 +8,7 @@ export function calculateScore(step: CascadeStep, comboLevel: number): number {
     if (s.type === GemType.Bomb) specialBonus += 100;
     else specialBonus += 50;
   }
-  for (const _ of step.specialsActivated) {
+  for (let i = 0; i < step.specialsActivated.length; i++) {
     specialBonus += 50;
   }
   return base * multiplier + specialBonus;
