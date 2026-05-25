@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Shuffle, Bomb, Plus, Hash, Target } from "lucide-react-native";
+import { View, Text, Image, Pressable, StyleSheet, ImageSourcePropType } from "react-native";
+import { Hash, Target } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { PowerUpType, PowerUp } from "../engine";
 
@@ -15,10 +15,10 @@ interface Props {
   onUsePowerUp: (type: PowerUpType) => void;
 }
 
-const POWERUP_ICONS: Record<PowerUpType, (color: string) => React.ReactElement> = {
-  [PowerUpType.Shuffle]: (c) => <Shuffle size={22} color={c} strokeWidth={2.5} />,
-  [PowerUpType.DestroyGem]: (c) => <Bomb size={22} color={c} strokeWidth={2.5} />,
-  [PowerUpType.ExtraMoves]: (c) => <Plus size={22} color={c} strokeWidth={2.5} />,
+const POWERUP_IMAGE: Record<PowerUpType, ImageSourcePropType> = {
+  [PowerUpType.Shuffle]: require("../../assets/powerups/shuffle.png"),
+  [PowerUpType.DestroyGem]: require("../../assets/powerups/bomb.png"),
+  [PowerUpType.ExtraMoves]: require("../../assets/powerups/extra-moves.png"),
 };
 
 const POWERUP_NAMES: Record<PowerUpType, string> = {
@@ -62,8 +62,15 @@ export default function HUD({
       </View>
 
       {mode === "level" && targetScore > 0 && (
-        <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        <View style={styles.progressContainer}>
+          <View style={styles.progressMeta}>
+            <Target size={10} color="rgba(167, 139, 250, 0.7)" />
+            <Text style={styles.progressLabel}>TARGET</Text>
+            <Text style={styles.progressTarget}>{targetScore.toLocaleString()}</Text>
+          </View>
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          </View>
         </View>
       )}
 
@@ -78,7 +85,6 @@ export default function HUD({
         {powerUps.map((pu) => {
           const isActive = destroyMode && pu.type === PowerUpType.DestroyGem;
           const disabled = pu.uses <= 0;
-          const iconColor = disabled ? "#6b5b95" : isActive ? "#fff" : "#e9d5ff";
           return (
             <Pressable
               key={pu.type}
@@ -95,7 +101,11 @@ export default function HUD({
                 disabled && styles.powerUpDisabled,
               ]}
             >
-              {POWERUP_ICONS[pu.type](iconColor)}
+              <Image
+                source={POWERUP_IMAGE[pu.type]}
+                style={[styles.powerUpImg, disabled && styles.powerUpImgDim]}
+                resizeMode="contain"
+              />
               <Text style={[styles.powerUpName, disabled && { color: "#6b5b95" }]}>
                 {POWERUP_NAMES[pu.type]}
               </Text>
@@ -135,12 +145,26 @@ const styles = StyleSheet.create({
   },
   danger: { color: "#f87171" },
   endlessLabel: { fontSize: 16, color: "#22d3ee", fontWeight: "700" },
+  progressContainer: { paddingHorizontal: 4, gap: 6 },
+  progressMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  progressLabel: {
+    fontSize: 9,
+    color: "rgba(167, 139, 250, 0.7)",
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    flex: 1,
+  },
+  progressTarget: {
+    fontSize: 10,
+    color: "rgba(245, 243, 255, 0.7)",
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
   progressBg: {
     height: 6,
     backgroundColor: "rgba(0,0,0,0.4)",
     borderRadius: 3,
     overflow: "hidden",
-    marginHorizontal: 4,
   },
   progressFill: {
     height: "100%",
@@ -165,7 +189,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 8,
     alignItems: "center",
     position: "relative",
@@ -175,7 +199,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(236,72,153,0.25)",
     borderColor: "#ec4899",
   },
-  powerUpDisabled: { opacity: 0.45 },
+  powerUpDisabled: { opacity: 0.5 },
+  powerUpImg: { width: 38, height: 38 },
+  powerUpImgDim: { opacity: 0.55 },
   powerUpName: { fontSize: 11, color: "#e9d5ff", fontWeight: "700", letterSpacing: 0.3 },
   usesBadge: {
     position: "absolute",

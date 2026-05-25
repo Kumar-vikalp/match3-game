@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ScrollView } from "react-native";
 import { Link, useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowLeft, Lock, Star, Target, Hash, Trophy } from "lucide-react-native";
+import { ArrowLeft, Target, Hash } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { LEVELS } from "../src/game/levels";
 import { loadProgress, type PlayerProgress, DEFAULT_PROGRESS } from "../src/lib/progress";
+
+const IMG_STAR = require("../assets/icons/star.png");
+const IMG_LOCK = require("../assets/icons/locked-padlock.png");
 
 export default function Levels() {
   const router = useRouter();
@@ -41,7 +44,7 @@ export default function Levels() {
           <Text style={styles.subtitle}>{progress.levelsCompleted.length} of {LEVELS.length} levels</Text>
         </View>
         <View style={styles.starCounter}>
-          <Star size={14} color="#fbbf24" fill="#fbbf24" />
+          <Image source={IMG_STAR} style={styles.headerStarImg} resizeMode="contain" />
           <Text style={styles.starCount}>
             {totalStars}<Text style={styles.starMax}>/{maxStars}</Text>
           </Text>
@@ -62,7 +65,7 @@ export default function Levels() {
             if (isLocked) {
               return (
                 <View key={level.id} style={[styles.card, styles.locked]}>
-                  <Lock size={28} color="rgba(167, 139, 250, 0.4)" />
+                  <Image source={IMG_LOCK} style={styles.lockImg} resizeMode="contain" />
                   <Text style={styles.lockedNum}>{level.id}</Text>
                 </View>
               );
@@ -94,11 +97,11 @@ export default function Levels() {
                     </Text>
                     <View style={styles.starsRow}>
                       {[1, 2, 3].map((s) => (
-                        <Star
+                        <Image
                           key={s}
-                          size={14}
-                          color={s <= stars ? "#fbbf24" : "rgba(139, 92, 246, 0.25)"}
-                          fill={s <= stars ? "#fbbf24" : "transparent"}
+                          source={IMG_STAR}
+                          style={[styles.cardStarImg, s > stars && styles.cardStarImgOff]}
+                          resizeMode="contain"
                         />
                       ))}
                     </View>
@@ -175,6 +178,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(251, 191, 36, 0.25)",
     borderRadius: 100,
   },
+  headerStarImg: { width: 18, height: 18 },
+  lockImg: { width: 38, height: 38, opacity: 0.7 },
+  cardStarImg: { width: 18, height: 18 },
+  cardStarImgOff: { opacity: 0.18 },
   starCount: {
     color: "#fbbf24",
     fontSize: 13,

@@ -42,7 +42,12 @@ export default function LevelScreen() {
   const [resumeData, setResumeData] = useState<SavedGame | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [resultData, setResultData] = useState<{ won: boolean; score: number } | null>(null);
+  const [resultData, setResultData] = useState<{
+    won: boolean;
+    score: number;
+    movesLeft: number;
+    maxMoves: number;
+  } | null>(null);
 
   // On mount, check for a saved game
   useEffect(() => {
@@ -69,7 +74,7 @@ export default function LevelScreen() {
       // Game ended - clear saved snapshot for this level
       await clearSavedGame(level.id);
 
-      setResultData({ won: info.won, score: info.score });
+      setResultData(info);
       setShowResult(true);
 
       if (info.won) {
@@ -142,6 +147,8 @@ export default function LevelScreen() {
         won={!!resultData?.won}
         score={resultData?.score ?? 0}
         targetScore={level.targetScore}
+        movesLeft={resultData?.movesLeft ?? 0}
+        maxMoves={resultData?.maxMoves ?? level.maxMoves}
         hasNextLevel={!!resultData?.won && !!nextLevel}
         onRestart={async () => {
           await clearSavedGame(level.id);

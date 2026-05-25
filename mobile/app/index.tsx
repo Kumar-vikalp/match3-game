@@ -1,13 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ScrollView } from "react-native";
 import { Link, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Trophy, Infinity as InfinityIcon, Star, ChevronRight, Sparkles } from "lucide-react-native";
+import { ChevronRight, Sparkles } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { loadProgress, type PlayerProgress, DEFAULT_PROGRESS } from "../src/lib/progress";
 import SyncIndicator from "../src/components/SyncIndicator";
 import { LEVELS } from "../src/game/levels";
+
+const IMG_TROPHY = require("../assets/icons/trophy.png");
+const IMG_INFINITY = require("../assets/icons/infinity.png");
+const IMG_STAR = require("../assets/icons/star.png");
 
 export default function Home() {
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
@@ -50,7 +54,7 @@ export default function Home() {
                 end={{ x: 1, y: 1 }}
                 style={styles.btnGradient}
               >
-                <Trophy size={26} color="#fff" strokeWidth={2.5} />
+                <Image source={IMG_TROPHY} style={styles.btnIcon} resizeMode="contain" />
                 <View style={styles.btnTextWrap}>
                   <Text style={styles.btnTitle}>Campaign</Text>
                   <Text style={styles.btnSubtitle}>{progress.levelsCompleted.length} / {LEVELS.length} levels</Text>
@@ -71,7 +75,7 @@ export default function Home() {
                 end={{ x: 1, y: 1 }}
                 style={styles.btnGradient}
               >
-                <InfinityIcon size={26} color="#fff" strokeWidth={2.5} />
+                <Image source={IMG_INFINITY} style={styles.btnIcon} resizeMode="contain" />
                 <View style={styles.btnTextWrap}>
                   <Text style={styles.btnTitle}>Endless</Text>
                   <Text style={styles.btnSubtitle}>Best · {progress.endlessHighScore.toLocaleString()}</Text>
@@ -85,9 +89,7 @@ export default function Home() {
         <View style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
-              <View style={styles.statIcon}>
-                <Star size={16} color="#fbbf24" fill="#fbbf24" />
-              </View>
+              <Image source={IMG_STAR} style={styles.statIconImg} resizeMode="contain" />
               <Text style={styles.statValue}>{totalStars}</Text>
               <Text style={styles.statMax}>/ {maxStars}</Text>
               <Text style={styles.statLabel}>Stars</Text>
@@ -96,9 +98,7 @@ export default function Home() {
             <View style={styles.divider} />
 
             <View style={styles.statBlock}>
-              <View style={styles.statIcon}>
-                <Trophy size={16} color="#a78bfa" />
-              </View>
+              <Image source={IMG_TROPHY} style={styles.statIconImg} resizeMode="contain" />
               <Text style={styles.statValue}>{progress.levelsCompleted.length}</Text>
               <Text style={styles.statMax}>/ {LEVELS.length}</Text>
               <Text style={styles.statLabel}>Levels</Text>
@@ -107,9 +107,7 @@ export default function Home() {
             <View style={styles.divider} />
 
             <View style={styles.statBlock}>
-              <View style={styles.statIcon}>
-                <InfinityIcon size={16} color="#22d3ee" />
-              </View>
+              <Image source={IMG_INFINITY} style={styles.statIconImg} resizeMode="contain" />
               <Text style={styles.statValue}>
                 {progress.endlessHighScore > 999
                   ? `${(progress.endlessHighScore / 1000).toFixed(1)}k`
@@ -193,6 +191,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   btnTextWrap: { flex: 1, gap: 2 },
+  btnIcon: { width: 36, height: 36 },
   btnTitle: { color: "#fff", fontWeight: "800", fontSize: 19, letterSpacing: -0.3 },
   btnSubtitle: { color: "rgba(255, 255, 255, 0.7)", fontSize: 12, fontWeight: "500" },
   btnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
@@ -214,6 +213,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 6,
   },
+  statIconImg: { width: 36, height: 36, marginBottom: 4 },
   statValue: {
     color: "#fff",
     fontSize: 22,
