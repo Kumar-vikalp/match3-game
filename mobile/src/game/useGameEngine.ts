@@ -44,6 +44,13 @@ interface Options {
   maxMoves?: number;
   targetScore?: number;
   mode: "level" | "endless";
+  initial?: {
+    board: BoardState;
+    score: number;
+    combo: number;
+    movesLeft: number;
+    powerUps: PowerUp[];
+  };
   onGameEnd?: (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => void;
 }
 
@@ -56,19 +63,20 @@ function createPowerUp(type: PowerUpType): PowerUp {
   return { type, uses: 3 };
 }
 
-export function useGameEngine({ config, maxMoves = -1, targetScore = 0, mode, onGameEnd }: Options) {
+export function useGameEngine({ config, maxMoves = -1, targetScore = 0, mode, initial, onGameEnd }: Options) {
   const [snapshot, setSnapshot] = useState<GameSnapshot>(() => ({
-    board: createBoard(config),
-    score: 0,
-    combo: 0,
-    movesLeft: maxMoves,
+    board: initial?.board ?? createBoard(config),
+    score: initial?.score ?? 0,
+    combo: initial?.combo ?? 0,
+    movesLeft: initial?.movesLeft ?? maxMoves,
     targetScore,
     state: "idle",
-    powerUps: [
-      createPowerUp(PowerUpType.Shuffle),
-      createPowerUp(PowerUpType.DestroyGem),
-      ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
-    ],
+    powerUps:
+      initial?.powerUps ?? [
+        createPowerUp(PowerUpType.Shuffle),
+        createPowerUp(PowerUpType.DestroyGem),
+        ...(mode === "level" ? [createPowerUp(PowerUpType.ExtraMoves)] : []),
+      ],
     destroyMode: false,
     selected: null,
     currentAnim: null,

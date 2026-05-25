@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Trophy, Infinity as InfinityIcon, Star, ChevronRight, Sparkles } from "lucide-react-native";
@@ -12,9 +12,11 @@ import { LEVELS } from "../src/game/levels";
 export default function Home() {
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
 
-  useEffect(() => {
-    loadProgress().then(setProgress);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadProgress().then(setProgress);
+    }, [])
+  );
 
   const totalStars = Object.values(progress.stars).reduce((a, b) => a + b, 0);
   const maxStars = LEVELS.length * 3;

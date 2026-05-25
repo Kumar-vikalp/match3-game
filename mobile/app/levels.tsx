@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Lock, Star, Target, Hash, Trophy } from "lucide-react-native";
@@ -12,9 +12,11 @@ export default function Levels() {
   const router = useRouter();
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
 
-  useEffect(() => {
-    loadProgress().then(setProgress);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadProgress().then(setProgress);
+    }, [])
+  );
 
   const lastCompleted =
     progress.levelsCompleted.length > 0 ? Math.max(...progress.levelsCompleted) : 0;
