@@ -21,14 +21,14 @@ export default function LevelScreen() {
   const [resultData, setResultData] = useState<{ won: boolean; score: number } | null>(null);
 
   const handleEnd = useCallback(
-    async (won: boolean, score: number) => {
+    async (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => {
       if (!level) return;
-      setResultData({ won, score });
+      setResultData({ won: info.won, score: info.score });
       setShowResult(true);
 
-      if (won) {
-        const stars = calculateStars(score, level.targetScore);
-        await recordLevelComplete(level.id, score, stars);
+      if (info.won) {
+        const stars = calculateStars(info.score, level.targetScore, info.movesLeft, info.maxMoves);
+        await recordLevelComplete(level.id, info.score, stars);
       }
     },
     [level]
@@ -89,7 +89,7 @@ function Game({
   onEnd,
 }: {
   level: (typeof LEVELS)[number];
-  onEnd: (won: boolean, score: number) => void;
+  onEnd: (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => void;
 }) {
   const { snapshot, handleClick, requestSwap, usePowerUp } = useGameEngine({
     config: { rows: level.rows, cols: level.cols, numColors: level.numColors },

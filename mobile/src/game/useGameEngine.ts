@@ -44,7 +44,7 @@ interface Options {
   maxMoves?: number;
   targetScore?: number;
   mode: "level" | "endless";
-  onGameEnd?: (won: boolean, score: number) => void;
+  onGameEnd?: (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => void;
 }
 
 const SWAP_MS = 200;
@@ -193,7 +193,12 @@ export function useGameEngine({ config, maxMoves = -1, targetScore = 0, mode, on
         if (newState === "gameover" && !gameEndedRef.current) {
           gameEndedRef.current = true;
           const won = mode === "level" && stateRef.current.score >= targetScore;
-          onGameEnd?.(won, stateRef.current.score);
+          onGameEnd?.({
+            won,
+            score: stateRef.current.score,
+            movesLeft: Math.max(0, stateRef.current.movesLeft),
+            maxMoves: maxMoves > 0 ? maxMoves : 0,
+          });
         }
         return;
       }
@@ -252,7 +257,12 @@ export function useGameEngine({ config, maxMoves = -1, targetScore = 0, mode, on
     if (newState === "gameover" && !gameEndedRef.current) {
       gameEndedRef.current = true;
       const won = mode === "level" && stateRef.current.score >= targetScore;
-      onGameEnd?.(won, stateRef.current.score);
+      onGameEnd?.({
+        won,
+        score: stateRef.current.score,
+        movesLeft: Math.max(0, stateRef.current.movesLeft),
+        maxMoves: maxMoves > 0 ? maxMoves : 0,
+      });
     }
   };
 

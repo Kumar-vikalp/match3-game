@@ -12,10 +12,33 @@ export const DEFAULT_PROGRESS: PlayerProgress = {
   endlessHighScore: 0,
 };
 
-export function calculateStars(score: number, target: number): number {
+/**
+ * Stars are earned based on a "skill" score combining over-target scoring
+ * and move efficiency:
+ *
+ *   skill = (score - target) / target + (movesLeft / maxMoves) * 0.5
+ *
+ * 0 stars: score < target (failed to hit goal)
+ * 1 star : passed target
+ * 2 stars: skill >= 0.3
+ * 3 stars: skill >= 0.8
+ */
+export function calculateStars(
+  score: number,
+  target: number,
+  movesLeft: number = 0,
+  maxMoves: number = 0
+): number {
+  if (target <= 0) return 0;
   if (score < target) return 0;
-  if (score >= target * 2) return 3;
-  if (score >= target * 1.5) return 2;
+
+  const overscore = (score - target) / target;
+  const efficiency =
+    maxMoves > 0 ? Math.max(0, Math.min(1, movesLeft / maxMoves)) * 0.5 : 0;
+  const skill = overscore + efficiency;
+
+  if (skill >= 0.8) return 3;
+  if (skill >= 0.3) return 2;
   return 1;
 }
 

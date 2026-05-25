@@ -11,6 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 import { GemColor, GemType, Position } from "../engine";
 import type { GameSnapshot } from "../game/useGameEngine";
+import GameLoading from "./GameLoading";
 
 interface Props {
   snapshot: GameSnapshot;
@@ -70,6 +71,9 @@ export default function GameBoard({ snapshot, onClick, onSwap }: Props) {
     }),
     [redImg, blueImg, greenImg, yellowImg, purpleImg, orangeImg]
   );
+
+  const allImagesLoaded =
+    !!redImg && !!blueImg && !!greenImg && !!yellowImg && !!purpleImg && !!orangeImg && !!thunderImg && !!bombImg;
 
   const boardHeight = rows * cellSize + PADDING * 2;
   const totalWidth = cols * cellSize + PADDING * 2;
@@ -234,6 +238,10 @@ export default function GameBoard({ snapshot, onClick, onSwap }: Props) {
     if (cell.type === GemType.Bomb) return bombImg;
     return colorImages[COLOR_TO_NAME[cell.color] as keyof typeof colorImages];
   };
+
+  if (!allImagesLoaded) {
+    return <GameLoading width={totalWidth} height={boardHeight} />;
+  }
 
   return (
     <GestureDetector gesture={gesture}>

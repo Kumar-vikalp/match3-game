@@ -14,10 +14,10 @@ export default function EndlessScreen() {
   const [resetKey, setResetKey] = useState(0);
   const [score, setScore] = useState(0);
 
-  const handleEnd = useCallback(async (_won: boolean, finalScore: number) => {
-    setScore(finalScore);
+  const handleEnd = useCallback(async (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => {
+    setScore(info.score);
     setShowResult(true);
-    await recordEndlessScore(finalScore);
+    await recordEndlessScore(info.score);
   }, []);
 
   return (
@@ -50,7 +50,7 @@ export default function EndlessScreen() {
   );
 }
 
-function EndlessGame({ onEnd }: { onEnd: (won: boolean, score: number) => void }) {
+function EndlessGame({ onEnd }: { onEnd: (info: { won: boolean; score: number; movesLeft: number; maxMoves: number }) => void }) {
   const { snapshot, handleClick, requestSwap, usePowerUp } = useGameEngine({
     config: { rows: 8, cols: 8, numColors: 6 },
     mode: "endless",

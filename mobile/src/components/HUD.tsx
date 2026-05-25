@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Shuffle, Bomb, Plus, Hash, Target } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { PowerUpType, PowerUp } from "../engine";
 
@@ -14,10 +15,16 @@ interface Props {
   onUsePowerUp: (type: PowerUpType) => void;
 }
 
-const POWERUP_LABEL: Record<PowerUpType, { icon: string; name: string }> = {
-  [PowerUpType.Shuffle]: { icon: "🔀", name: "Shuffle" },
-  [PowerUpType.DestroyGem]: { icon: "💥", name: "Destroy" },
-  [PowerUpType.ExtraMoves]: { icon: "➕", name: "+5 Moves" },
+const POWERUP_ICONS: Record<PowerUpType, (color: string) => React.ReactElement> = {
+  [PowerUpType.Shuffle]: (c) => <Shuffle size={22} color={c} strokeWidth={2.5} />,
+  [PowerUpType.DestroyGem]: (c) => <Bomb size={22} color={c} strokeWidth={2.5} />,
+  [PowerUpType.ExtraMoves]: (c) => <Plus size={22} color={c} strokeWidth={2.5} />,
+};
+
+const POWERUP_NAMES: Record<PowerUpType, string> = {
+  [PowerUpType.Shuffle]: "Shuffle",
+  [PowerUpType.DestroyGem]: "Destroy",
+  [PowerUpType.ExtraMoves]: "+5 Moves",
 };
 
 export default function HUD({
@@ -69,9 +76,9 @@ export default function HUD({
 
       <View style={styles.powerUps}>
         {powerUps.map((pu) => {
-          const label = POWERUP_LABEL[pu.type];
           const isActive = destroyMode && pu.type === PowerUpType.DestroyGem;
           const disabled = pu.uses <= 0;
+          const iconColor = disabled ? "#6b5b95" : isActive ? "#fff" : "#e9d5ff";
           return (
             <Pressable
               key={pu.type}
@@ -88,10 +95,12 @@ export default function HUD({
                 disabled && styles.powerUpDisabled,
               ]}
             >
-              <Text style={styles.powerUpIcon}>{label.icon}</Text>
-              <Text style={styles.powerUpName}>{label.name}</Text>
+              {POWERUP_ICONS[pu.type](iconColor)}
+              <Text style={[styles.powerUpName, disabled && { color: "#6b5b95" }]}>
+                {POWERUP_NAMES[pu.type]}
+              </Text>
               <View style={[styles.usesBadge, disabled && styles.usesBadgeOff]}>
-                <Text style={styles.usesText}>{pu.uses}</Text>
+                <Text style={[styles.usesText, disabled && { color: "#94a3b8" }]}>{pu.uses}</Text>
               </View>
             </Pressable>
           );
@@ -156,17 +165,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     borderRadius: 14,
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: "center",
     position: "relative",
+    gap: 4,
   },
   powerUpActive: {
     backgroundColor: "rgba(236,72,153,0.25)",
     borderColor: "#ec4899",
   },
-  powerUpDisabled: { opacity: 0.3 },
-  powerUpIcon: { fontSize: 20, marginBottom: 2 },
-  powerUpName: { fontSize: 10, color: "#a78bfa", fontWeight: "600" },
+  powerUpDisabled: { opacity: 0.45 },
+  powerUpName: { fontSize: 11, color: "#e9d5ff", fontWeight: "700", letterSpacing: 0.3 },
   usesBadge: {
     position: "absolute",
     top: -6,
