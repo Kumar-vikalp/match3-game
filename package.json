@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "build:worker": "npx opennextjs-cloudflare build",
     "preview": "npx opennextjs-cloudflare dev",
     "deploy": "npx opennextjs-cloudflare deploy",
