@@ -11,6 +11,7 @@ interface Props {
   score: number;
   targetScore?: number;
   hasNextLevel?: boolean;
+  mode?: "level" | "endless";
   onRestart: () => void;
   onBack: () => void;
   onNext?: () => void;
@@ -21,11 +22,24 @@ export default function GameOverModal({
   score,
   targetScore = 0,
   hasNextLevel = false,
+  mode = "level",
   onRestart,
   onBack,
   onNext,
 }: Props) {
   const stars = won && targetScore > 0 ? calculateStars(score, targetScore) : 0;
+
+  const title = won
+    ? "Level Complete!"
+    : mode === "endless"
+    ? "No More Moves"
+    : "Out of Moves";
+
+  const subtitle = won
+    ? null
+    : mode === "endless"
+    ? "The board is locked — restart for a fresh run."
+    : "So close! Try a different strategy.";
 
   useEffect(() => {
     if (!won) return;
@@ -78,7 +92,7 @@ export default function GameOverModal({
             }`}
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {won ? "Level Complete!" : "Out of Moves"}
+            {title}
           </motion.h2>
 
           {won && targetScore > 0 && (
@@ -113,7 +127,7 @@ export default function GameOverModal({
 
           {!won && (
             <p className="text-violet-300/80 mt-3 text-sm">
-              So close! Try a different strategy.
+              {subtitle}
             </p>
           )}
 

@@ -2,6 +2,7 @@ import {
   BoardState, CascadeStep, GameConfig, Position,
   createBoard, swap, isAdjacent, findMatches, resolveCascade, calculateScore,
   hasValidMoves, PowerUpType, PowerUp, applyShuffle,
+  applyGravity, refillBoard,
 } from '@/engine';
 import { CanvasRenderer } from '@/renderer/renderer';
 
@@ -109,6 +110,12 @@ export class GameController {
       this.onUpdate();
       return;
     }
+    // Guard: don't waste a use on an empty cell
+    if (!this.board[pos.row]?.[pos.col]) {
+      this.destroyMode = false;
+      this.onUpdate();
+      return;
+    }
     pu.uses--;
     this.destroyMode = false;
     this.state = GameState.Animating;
@@ -118,7 +125,12 @@ export class GameController {
     await this.renderer.animateRemove(this.board, [pos]);
     this.board[pos.row][pos.col] = null;
 
-    // Resolve cascade from this state
+    // CRITICAL: After nulling a single cell, there are no matches yet, so
+    // resolveCascade would exit immediately and leave a permanent hole.
+    // We must explicitly apply gravity + refill first to fill the gap.
+    await this.applyGravityAndRefill();
+
+    // Now resolve any chain matches that may have appeared from the new gems.
     const { board, steps } = resolveCascade(this.board, this.config);
     this.combo = 0;
     for (const step of steps) {
@@ -131,6 +143,32 @@ export class GameController {
     this.state = this.isGameOver() ? GameState.GameOver : GameState.Idle;
     this.render();
     this.onUpdate();
+  }
+
+  /**
+   * Applies gravity + refill once and animates the result.
+   * Used by powerups that create holes without producing matches.
+   */
+  private async applyGravityAndRefill(): Promise<void> {
+    const { board: afterGravity, fell } = applyGravity(this.board);
+    const { spawned } = refillBoard(afterGravity, this.config);
+
+    if (fell.length) {
+      await this.renderer.animateFall(this.board, fell);
+      const sortedFell = [...fell].sort((a, b) => b.to.row - a.to.row);
+      for (const m of sortedFell) {
+        this.board[m.to.row][m.to.col] = this.board[m.from.row][m.from.col];
+        this.board[m.from.row][m.from.col] = null;
+      }
+    }
+
+    if (spawned.length) {
+      for (const s of spawned) {
+        this.board[s.pos.row][s.pos.col] = s.cell;
+      }
+      await this.renderer.animateSpawn(this.board, spawned.map(s => s.pos));
+    }
+    this.render();
   }
 
   private async animateCascadeStep(step: CascadeStep): Promise<void> {
@@ -185,6 +223,14 @@ export class GameController {
 
   usePowerUp(type: PowerUpType): void {
     if (this.state === GameState.Animating || this.state === GameState.GameOver) return;
+
+    // Allow toggling off destroy mode by clicking the button again.
+    if (type === PowerUpType.DestroyGem && this.destroyMode) {
+      this.destroyMode = false;
+      this.onUpdate();
+      return;
+    }
+
     const pu = this.powerUps.find(p => p.type === type && p.uses > 0);
     if (!pu) return;
 

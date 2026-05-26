@@ -16,17 +16,26 @@ interface Props {
   maxMoves?: number;
   mode: "level" | "endless";
   onGameEnd?: (won: boolean, score: number) => void;
+  onScoreChange?: (score: number) => void;
 }
 
 const DRAG_THRESHOLD = 12; // pixels
 
-export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode, onGameEnd }: Props) {
+export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode, onGameEnd, onScoreChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GameController | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const [gameState, setGameState] = useState<ReturnType<GameController["getState"]> | null>(null);
   const [imagesReady, setImagesReady] = useState(false);
   const gameEndedRef = useRef(false);
+
+  // Stable refs so the effect doesn't re-create the controller on every parent render.
+  const onScoreChangeRef = useRef(onScoreChange);
+  const onGameEndRef = useRef(onGameEnd);
+  useEffect(() => {
+    onScoreChangeRef.current = onScoreChange;
+    onGameEndRef.current = onGameEnd;
+  }, [onScoreChange, onGameEnd]);
 
   // Drag tracking
   const dragStartRef = useRef<{ x: number; y: number; pos: Position } | null>(null);
@@ -48,10 +57,11 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
     const controller = new GameController(config, renderer, () => {
       const s = controller.getState();
       setGameState({ ...s });
+      onScoreChangeRef.current?.(s.score);
       if (s.state === GameState.GameOver && !gameEndedRef.current) {
         gameEndedRef.current = true;
         const won = mode === "level" && s.score >= targetScore;
-        onGameEnd?.(won, s.score);
+        onGameEndRef.current?.(won, s.score);
       }
     });
     controller.movesLeft = maxMoves;
@@ -94,6 +104,14 @@ export default function GameBoard({ config, targetScore = 0, maxMoves = -1, mode
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!dragStartRef.current || dragHandledRef.current) return;
+
+    // In destroy mode, drag-to-swap is disabled — any tap (with or without
+    // micro-movement) should fall through to handleClick on pointer up.
+    // Without this, even a 12px finger drift would set dragHandledRef = true
+    // and silently swallow the tap, making the powerup feel like it requires
+    // a held press.
+    if (controllerRef.current?.destroyMode) return;
+
     const pt = eventToCanvas(e.clientX, e.clientY);
     if (!pt) return;
 

@@ -12,5 +12,11 @@
 			"binding": "GAME_KV",
 			"id": "6d2af51d062b48bdb174820921756964"
 		}
-	]
+	],
+	"observability": {
+		"logs": {
+			"enabled": false,
+			"invocation_logs": true
+		}
+	}
 }

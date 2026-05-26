@@ -3,6 +3,7 @@ export interface PlayerProgress {
   highScores: Record<string, number>;
   stars: Record<string, number>;
   endlessHighScore: number;
+  endlessLastScore: number;
 }
 
 export const DEFAULT_PROGRESS: PlayerProgress = {
@@ -10,6 +11,7 @@ export const DEFAULT_PROGRESS: PlayerProgress = {
   highScores: {},
   stars: {},
   endlessHighScore: 0,
+  endlessLastScore: 0,
 };
 
 /**

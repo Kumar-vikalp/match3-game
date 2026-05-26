@@ -71,11 +71,12 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.7 }}
-          className="mt-10 w-full grid grid-cols-3 gap-3"
+          className="mt-10 w-full grid grid-cols-4 gap-2"
         >
           <Stat label="Stars" value={totalStars} icon={<Star size={14} className="text-yellow-400 fill-yellow-400" />} />
           <Stat label="Levels" value={progress.levelsCompleted.length} />
           <Stat label="Best" value={progress.endlessHighScore.toLocaleString()} small />
+          <Stat label="Last" value={progress.endlessLastScore.toLocaleString()} small />
         </motion.div>
       </motion.div>
 
@@ -129,10 +130,13 @@ function MenuButton({
 
 function Stat({ label, value, icon, small }: { label: string; value: number | string; icon?: React.ReactNode; small?: boolean }) {
   return (
-    <div className="card px-3 py-3 text-center">
+    <div className="card px-2 py-3 text-center">
       <div className="flex items-center justify-center gap-1 mb-0.5">
         {icon}
-        <span className={`font-bold tabular-nums text-white ${small ? "text-base" : "text-xl"}`} style={{ fontFamily: "var(--font-display)" }}>
+        <span
+          className={`font-bold tabular-nums text-white truncate ${small ? "text-sm" : "text-xl"}`}
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           {value}
         </span>
       </div>
